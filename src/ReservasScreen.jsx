@@ -89,7 +89,7 @@ function sendWhatsApp(r) {
 
   if (saldoPendiente > 0) {
     mensaje = `¡Hola ${r.huesped}! 👋\n\n` +
-      `Tu reserva en *Roomly* para la *${r.habitacion}* está confirmada.\n\n` +
+      `Tu reserva en *Casa Ñaupary* para la *${r.habitacion}* está confirmada.\n\n` +
       `📅 *Detalles de la Estadía:*\n` +
       `• Ingreso: ${formatDate(r.fecha_ingreso)}\n` +
       `• Salida: ${formatDate(r.fecha_salida)}\n` +
@@ -104,7 +104,7 @@ function sendWhatsApp(r) {
       `• Saldo Pendiente: S/ ${Number(saldoPendiente).toLocaleString("es-PE")} (a cancelar al momento de tu llegada)\n\n` +
       `¡Te esperamos! ✨`;
   } else {
-    mensaje = `¡Hola ${r.huesped}! Tu reserva en Roomly para la ${r.habitacion} está 100% confirmada y pagada en su totalidad. 🎉\n\n` +
+    mensaje = `¡Hola ${r.huesped}! Tu reserva en Casa Ñaupary para la ${r.habitacion} está 100% confirmada y pagada en su totalidad. 🎉\n\n` +
       `📅 *Detalles de tu estadía:*\n` +
       `• Ingreso: ${formatDate(r.fecha_ingreso)}\n` +
       `• Salida: ${formatDate(r.fecha_salida)}\n` +
@@ -165,14 +165,14 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
       return;
     }
     const entrada = new Date(form.fecha_ingreso);
-    const salida  = new Date(form.fecha_salida);
+    const salida = new Date(form.fecha_salida);
     if (salida <= entrada) { setHabitacionesDisponibles([]); return; }
 
     const libres = allHabitaciones.filter((hab) => {
       return !reservas.some((r) => {
         if (editingId && r.id === editingId) return false;  // ignora la reserva en edición
         if (r.habitacion !== hab.nombre) return false;
-        const rIn  = new Date(r.fecha_ingreso);
+        const rIn = new Date(r.fecha_ingreso);
         const rOut = new Date(r.fecha_salida);
         return entrada < rOut && salida > rIn;              // fórmula de cruce
       });
@@ -183,7 +183,7 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
     if (form.habitacion && !libres.some((h) => h.nombre === form.habitacion)) {
       setForm((prev) => ({ ...prev, habitacion: "" }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.fecha_ingreso, form.fecha_salida, allHabitaciones, reservas]);
 
   // ── Cálculo dinámico: precio_base × noches ─────────────────────
@@ -203,7 +203,7 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
     if (noches > 0) {
       setForm((prev) => ({ ...prev, precio_total: String(hab.precio * noches) }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.habitacion, form.fecha_ingreso, form.fecha_salida]);
 
   // Helper que marca la intención del usuario y actualiza el campo
@@ -272,8 +272,8 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
                 {!form.fecha_ingreso || !form.fecha_salida
                   ? "Selecciona fechas primero..."
                   : habitacionesDisponibles.length === 0
-                  ? "Sin habitaciones disponibles"
-                  : "Elige una habitación"}
+                    ? "Sin habitaciones disponibles"
+                    : "Elige una habitación"}
               </option>
               {habitacionesDisponibles.map((hab) => (
                 <option key={hab.id ?? hab.nombre} value={hab.nombre}>
@@ -283,9 +283,8 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
             </select>
             {/* Indicador de disponibles */}
             {form.fecha_ingreso && form.fecha_salida && (
-              <p className={`mt-1 text-[11px] ${
-                habitacionesDisponibles.length === 0 ? "text-rose-400" : "text-cyan-500"
-              }`}>
+              <p className={`mt-1 text-[11px] ${habitacionesDisponibles.length === 0 ? "text-rose-400" : "text-cyan-500"
+                }`}>
                 {habitacionesDisponibles.length === 0
                   ? "⚠️ Sin habitaciones libres en esas fechas"
                   : `✓ ${habitacionesDisponibles.length} habitación${habitacionesDisponibles.length !== 1 ? "es" : ""} disponible${habitacionesDisponibles.length !== 1 ? "s" : ""}`}
@@ -415,11 +414,11 @@ function DetalleModal({ reserva, onClose }) {
             )}
           </div>
 
-          <Row icon={<Home size={15} />}     label="Habitación"  value={reserva.habitacion} />
-          <Row icon={<User size={15} />}     label="Huésped"      value={reserva.huesped} />
-          <Row icon={<Phone size={15} />}    label="Teléfono"     value={reserva.telefono || "—"} />
-          <Row icon={<Calendar size={15} />} label="Ingreso"      value={formatDate(reserva.fecha_ingreso)} valueClass="text-cyan-300" />
-          <Row icon={<Calendar size={15} />} label="Salida"       value={formatDate(reserva.fecha_salida)}  valueClass="text-cyan-300" />
+          <Row icon={<Home size={15} />} label="Habitación" value={reserva.habitacion} />
+          <Row icon={<User size={15} />} label="Huésped" value={reserva.huesped} />
+          <Row icon={<Phone size={15} />} label="Teléfono" value={reserva.telefono || "—"} />
+          <Row icon={<Calendar size={15} />} label="Ingreso" value={formatDate(reserva.fecha_ingreso)} valueClass="text-cyan-300" />
+          <Row icon={<Calendar size={15} />} label="Salida" value={formatDate(reserva.fecha_salida)} valueClass="text-cyan-300" />
 
           {/* Bloque financiero */}
           <div className="mt-4 rounded-xl border border-slate-800 bg-slate-800/40 p-4 grid grid-cols-3 gap-3 text-center">
@@ -731,11 +730,10 @@ export default function ReservasScreen() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setMostrarHistorial((v) => !v)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide transition-all ${
-              mostrarHistorial
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide transition-all ${mostrarHistorial
                 ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
                 : "border-slate-700 bg-transparent text-slate-400 hover:border-slate-500 hover:text-white"
-            }`}
+              }`}
           >
             {mostrarHistorial ? "Ver Activas" : "Ver Historial"}
           </button>
