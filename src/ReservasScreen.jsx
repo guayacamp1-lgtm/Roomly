@@ -35,6 +35,7 @@ const FORM_INITIAL = {
   precio_total: "",
   adelanto: "",
   metodo_pago_adelanto: "Efectivo",
+  metodo_pago: "Efectivo",
   estado: "pendiente",
 };
 
@@ -155,6 +156,15 @@ function Field({ label, icon, children }) {
 function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialData, allHabitaciones, reservas, editingId }) {
   const [form, setForm] = useState(initialData ?? FORM_INITIAL);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Sincronizar estado interno cuando cambia initialData
+  useEffect(() => {
+    if (initialData) {
+      setForm(initialData);
+    } else {
+      setForm(FORM_INITIAL);
+    }
+  }, [initialData]);
 
   // ── Filtrado de disponibilidad en tiempo real ─────────────────────
   const [habitacionesDisponibles, setHabitacionesDisponibles] = useState(allHabitaciones);
@@ -317,9 +327,17 @@ function ReservaModal({ onClose, onSave, onDelete, loading, isEditing, initialDa
           {parseFloat(form.adelanto) > 0 && (
             <Field label="Método de Pago (Adelanto)" icon={<DollarSign size={14} />}>
               <select
-                id="metodo_pago_adelanto"
-                value={form.metodo_pago_adelanto}
-                onChange={(e) => set("metodo_pago_adelanto", e.target.value)}
+                id="metodo_pago"
+                name="metodo_pago"
+                value={form.metodo_pago || form.metodo_pago_adelanto || "Efectivo"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    metodo_pago: val,
+                    metodo_pago_adelanto: val,
+                  }));
+                }}
                 className={inputCls}
               >
                 {METODOS_PAGO.map((m) => (
@@ -535,6 +553,7 @@ export default function ReservasScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingData, setEditingData] = useState(null);
+  const [adelantoOriginal, setAdelantoOriginal] = useState(0);
   const [viewingReserva, setViewingReserva] = useState(null);
   const [confirmandoPago, setConfirmandoPago] = useState(null);
   const [processingPago, setProcessingPago] = useState(false);
@@ -583,6 +602,21 @@ export default function ReservasScreen() {
 
   function openEdit(r) {
     setEditingId(r.id);
+    setAdelantoOriginal(parseFloat(r.adelanto) || 0);
+
+    // Extraer método de pago real almacenado en la reserva
+    const rawMetodo =
+      r.metodo_pago ??
+      r.metodo_pago_adelanto ??
+      r.tipo_pago ??
+      r.metodoPago ??
+      r.metodo ??
+      "";
+
+    const metodoCoincidente = rawMetodo
+      ? (METODOS_PAGO.find((m) => m.toLowerCase() === String(rawMetodo).trim().toLowerCase()) || rawMetodo)
+      : "Efectivo";
+
     setEditingData({
       habitacion: r.habitacion,
       huesped: r.huesped,
@@ -591,6 +625,8 @@ export default function ReservasScreen() {
       fecha_salida: r.fecha_salida,
       precio_total: String(r.precio_total ?? ""),
       adelanto: String(r.adelanto ?? ""),
+      metodo_pago_adelanto: metodoCoincidente,
+      metodo_pago: metodoCoincidente,
       estado: r.estado,
     });
     setIsModalOpen(true);
@@ -604,6 +640,7 @@ export default function ReservasScreen() {
 
   // ── Guardar (INSERT o UPDATE) ─────────────────
   async function handleSave(form) {
+    console.log("FORM RECIBIDO EN HANDLESAVE:", form);
     setError("");
 
     if (new Date(form.fecha_salida) <= new Date(form.fecha_ingreso)) {
@@ -624,6 +661,7 @@ export default function ReservasScreen() {
       fecha_salida: form.fecha_salida,
       precio_total: parseFloat(form.precio_total) || 0,
       adelanto: parseFloat(form.adelanto) || 0,
+      metodo_pago: form.metodo_pago || form.metodo_pago_adelanto || "Efectivo",
       estado: form.estado,
     };
 
@@ -637,6 +675,32 @@ export default function ReservasScreen() {
           prev.map((r) => (r.id === editingId ? data : r))
             .sort((a, b) => new Date(a.fecha_ingreso) - new Date(b.fecha_ingreso))
         );
+
+        // ── Sincronización de adelanto con Caja ──────────────────────
+        const nuevoAdelanto = payload.adelanto;
+        const diferencia = parseFloat((nuevoAdelanto - adelantoOriginal).toFixed(2));
+
+        const metodoPagoAjuste = form.metodo_pago_adelanto || form.metodo_pago || "Efectivo";
+
+        if (diferencia > 0) {
+          // El adelanto aumentó → ingreso por la diferencia
+          await registrarEnCaja({
+            tipo: "ingreso",
+            monto: diferencia,
+            concepto: `Ajuste / Incremento Adelanto - ${payload.habitacion}`,
+            metodo_pago: metodoPagoAjuste,
+          });
+        } else if (diferencia < 0) {
+          // El adelanto disminuyó → egreso por la diferencia
+          await registrarEnCaja({
+            tipo: "egreso",
+            monto: Math.abs(diferencia),
+            concepto: `Ajuste / Reducción Adelanto - ${payload.habitacion}`,
+            metodo_pago: metodoPagoAjuste,
+          });
+        }
+        // ─────────────────────────────────────────────────────────────
+
         closeModal();
       }
     } else {
@@ -656,7 +720,7 @@ export default function ReservasScreen() {
             tipo: "ingreso",
             monto: payload.adelanto,
             concepto: `Adelanto Reserva - ${payload.habitacion}`,
-            metodo_pago: form.metodo_pago_adelanto ?? "Efectivo",
+            metodo_pago: form.metodo_pago_adelanto || form.metodo_pago || "Efectivo",
           });
         }
       }
@@ -731,8 +795,8 @@ export default function ReservasScreen() {
           <button
             onClick={() => setMostrarHistorial((v) => !v)}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide transition-all ${mostrarHistorial
-                ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
-                : "border-slate-700 bg-transparent text-slate-400 hover:border-slate-500 hover:text-white"
+              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+              : "border-slate-700 bg-transparent text-slate-400 hover:border-slate-500 hover:text-white"
               }`}
           >
             {mostrarHistorial ? "Ver Activas" : "Ver Historial"}
